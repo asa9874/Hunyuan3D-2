@@ -95,6 +95,7 @@ class ImageEncoder(nn.Module):
 
         image = image.to(self.model.device, dtype=self.model.dtype)
         inputs = self.transform(image)
+        torch.backends.cudnn.enabled = False
         outputs = self.model(inputs)
 
         last_hidden_state = outputs.last_hidden_state

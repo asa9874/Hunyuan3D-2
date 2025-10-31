@@ -28,7 +28,7 @@ from fastapi.staticfiles import StaticFiles
 import uuid
 
 from hy3dgen.shapegen.utils import logger
-
+torch.backends.cudnn.enabled = False
 MAX_SEED = int(1e7)
 
 
