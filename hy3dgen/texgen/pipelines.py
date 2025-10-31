@@ -297,6 +297,9 @@ class Hunyuan3DPaintPipeline:
 
         profiling['TOTAL'] = time.time() - total_start
 
+        # 프로파일링 결과를 파이프라인 객체에 저장
+        self.profiling = profiling
+
         # 프로파일링 결과 출력
         print("\n" + "="*60)
         print("🔍 텍스처 생성 단계별 시간 분석")

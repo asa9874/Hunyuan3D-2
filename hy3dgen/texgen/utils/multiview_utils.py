@@ -26,6 +26,7 @@ class Multiview_Diffusion_Net():
     def __init__(self, config) -> None:
         self.device = config.device
         self.view_size = 512
+        self.num_inference_steps = getattr(config, 'multiview_inference_steps', 6)  # 설정 가능
         multiview_ckpt_path = config.multiview_ckpt_path
 
         current_file_path = os.path.abspath(__file__)
@@ -82,6 +83,6 @@ class Multiview_Diffusion_Net():
         kwargs["normal_imgs"] = normal_image
         kwargs["position_imgs"] = position_image
 
-        mvd_image = self.pipeline(input_images, num_inference_steps=10, **kwargs).images  # 30에서 10으로 줄임
+        mvd_image = self.pipeline(input_images, num_inference_steps=self.num_inference_steps, **kwargs).images
 
         return mvd_image

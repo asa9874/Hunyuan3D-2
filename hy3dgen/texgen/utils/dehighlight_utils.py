@@ -24,6 +24,7 @@ class Light_Shadow_Remover():
         self.device = config.device
         self.cfg_image = 1.5
         self.cfg_text = 1.0
+        self.num_inference_steps = getattr(config, 'delight_inference_steps', 6)  # 설정 가능
 
         pipeline = StableDiffusionInstructPix2PixPipeline.from_pretrained(
             config.light_remover_ckpt_path,
@@ -96,7 +97,7 @@ class Light_Shadow_Remover():
             generator=torch.manual_seed(42),
             height=512,
             width=512,
-            num_inference_steps=10,  # 50에서 10으로 줄임 (turbo 버전 최적화)
+            num_inference_steps=self.num_inference_steps,
             image_guidance_scale=self.cfg_image,
             guidance_scale=self.cfg_text,
         ).images[0]
