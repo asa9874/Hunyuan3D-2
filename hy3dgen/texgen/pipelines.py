@@ -188,10 +188,16 @@ class Hunyuan3DPaintPipeline:
 
     @torch.no_grad()
     def __call__(self, mesh, image):
+        import time
+        profiling = {}
+        total_start = time.time()
 
         if not isinstance(image, List):
             image = [image]
 
+        # 1. 이미지 전처리
+        step_start = time.time()
+        print("    → [1/11] 이미지 중앙 정렬 중...")
         images_prompt = []
         for i in range(len(image)):
             if isinstance(image[i], str):
@@ -201,40 +207,106 @@ class Hunyuan3DPaintPipeline:
             images_prompt.append(image_prompt)
             
         images_prompt = [self.recenter_image(image_prompt) for image_prompt in images_prompt]
+        profiling['1_image_recenter'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['1_image_recenter']:.2f}초")
 
+        # 2. Delight 모델 (그림자/하이라이트 제거)
+        step_start = time.time()
+        print("    → [2/11] Delight 모델 실행 중 (그림자/하이라이트 제거)...")
         images_prompt = [self.models['delight_model'](image_prompt) for image_prompt in images_prompt]
+        profiling['2_delight_model'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['2_delight_model']:.2f}초")
 
+        # 3. UV Wrapping
+        step_start = time.time()
+        print("    → [3/11] UV Wrapping 중...")
         mesh = mesh_uv_wrap(mesh)
+        profiling['3_uv_wrap'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['3_uv_wrap']:.2f}초")
 
+        # 4. 메쉬 로드
+        step_start = time.time()
+        print("    → [4/11] 메쉬 로드 중...")
         self.render.load_mesh(mesh)
+        profiling['4_mesh_load'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['4_mesh_load']:.2f}초")
 
         selected_camera_elevs, selected_camera_azims, selected_view_weights = \
             self.config.candidate_camera_elevs, self.config.candidate_camera_azims, self.config.candidate_view_weights
 
+        # 5. Normal 맵 렌더링
+        step_start = time.time()
+        print(f"    → [5/11] Normal 맵 렌더링 중 ({len(selected_camera_elevs)}개 뷰)...")
         normal_maps = self.render_normal_multiview(
             selected_camera_elevs, selected_camera_azims, use_abs_coor=True)
+        profiling['5_render_normal'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['5_render_normal']:.2f}초")
+
+        # 6. Position 맵 렌더링
+        step_start = time.time()
+        print(f"    → [6/11] Position 맵 렌더링 중 ({len(selected_camera_elevs)}개 뷰)...")
         position_maps = self.render_position_multiview(
             selected_camera_elevs, selected_camera_azims)
+        profiling['6_render_position'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['6_render_position']:.2f}초")
 
+        # 7. Multiview 생성 (가장 시간 많이 걸림)
+        step_start = time.time()
+        print("    → [7/11] Multiview 모델 실행 중 (멀티뷰 이미지 생성)...")
         camera_info = [(((azim // 30) + 9) % 12) // {-20: 1, 0: 1, 20: 1, -90: 3, 90: 3}[
             elev] + {-20: 0, 0: 12, 20: 24, -90: 36, 90: 40}[elev] for azim, elev in
                        zip(selected_camera_azims, selected_camera_elevs)]
         multiviews = self.models['multiview_model'](images_prompt, normal_maps + position_maps, camera_info)
+        profiling['7_multiview_model'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['7_multiview_model']:.2f}초")
 
+        # 8. 이미지 리사이즈
+        step_start = time.time()
+        print("    → [8/11] 이미지 리사이즈 중...")
         for i in range(len(multiviews)):
             # multiviews[i] = self.models['super_model'](multiviews[i])
             multiviews[i] = multiviews[i].resize(
                 (self.config.render_size, self.config.render_size))
+        profiling['8_image_resize'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['8_image_resize']:.2f}초")
 
+        # 9. 텍스처 베이킹
+        step_start = time.time()
+        print("    → [9/11] 텍스처 베이킹 중...")
         texture, mask = self.bake_from_multiview(multiviews,
                                                  selected_camera_elevs, selected_camera_azims, selected_view_weights,
                                                  method=self.config.merge_method)
+        profiling['9_texture_bake'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['9_texture_bake']:.2f}초")
 
+        # 10. 텍스처 인페인팅
+        step_start = time.time()
+        print("    → [10/11] 텍스처 인페인팅 중...")
         mask_np = (mask.squeeze(-1).cpu().numpy() * 255).astype(np.uint8)
-
         texture = self.texture_inpaint(texture, mask_np)
+        profiling['10_texture_inpaint'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['10_texture_inpaint']:.2f}초")
 
+        # 11. 메쉬 저장
+        step_start = time.time()
+        print("    → [11/11] 최종 메쉬 저장 중...")
         self.render.set_texture(texture)
         textured_mesh = self.render.save_mesh()
+        profiling['11_mesh_save'] = time.time() - step_start
+        print(f"    ✓ 완료: {profiling['11_mesh_save']:.2f}초")
+
+        profiling['TOTAL'] = time.time() - total_start
+
+        # 프로파일링 결과 출력
+        print("\n" + "="*60)
+        print("🔍 텍스처 생성 단계별 시간 분석")
+        print("="*60)
+        for step, elapsed in profiling.items():
+            if step != 'TOTAL':
+                percentage = (elapsed / profiling['TOTAL']) * 100
+                print(f"  {step:25s}: {elapsed:6.2f}초 ({percentage:5.1f}%)")
+        print("-"*60)
+        print(f"  {'TOTAL':25s}: {profiling['TOTAL']:6.2f}초")
+        print("="*60 + "\n")
 
         return textured_mesh

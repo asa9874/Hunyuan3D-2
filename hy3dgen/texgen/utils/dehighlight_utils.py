@@ -31,7 +31,7 @@ class Light_Shadow_Remover():
             safety_checker=None,
         )
         pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(pipeline.scheduler.config)
-        pipeline.set_progress_bar_config(disable=True)
+        # pipeline.set_progress_bar_config(disable=True)  # 진행바 활성화
 
         self.pipeline = pipeline.to(self.device, torch.float16)
     
@@ -96,7 +96,7 @@ class Light_Shadow_Remover():
             generator=torch.manual_seed(42),
             height=512,
             width=512,
-            num_inference_steps=50,
+            num_inference_steps=10,  # 50에서 10으로 줄임 (turbo 버전 최적화)
             image_guidance_scale=self.cfg_image,
             guidance_scale=self.cfg_text,
         ).images[0]

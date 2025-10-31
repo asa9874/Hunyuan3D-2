@@ -44,7 +44,7 @@ class Multiview_Diffusion_Net():
             pipeline.set_turbo(True)
             # pipeline.prepare() 
 
-        pipeline.set_progress_bar_config(disable=True)
+        # pipeline.set_progress_bar_config(disable=True)  # 진행바 활성화
         self.pipeline = pipeline.to(self.device)
 
     def seed_everything(self, seed):
@@ -82,6 +82,6 @@ class Multiview_Diffusion_Net():
         kwargs["normal_imgs"] = normal_image
         kwargs["position_imgs"] = position_image
 
-        mvd_image = self.pipeline(input_images, num_inference_steps=30, **kwargs).images
+        mvd_image = self.pipeline(input_images, num_inference_steps=10, **kwargs).images  # 30에서 10으로 줄임
 
         return mvd_image

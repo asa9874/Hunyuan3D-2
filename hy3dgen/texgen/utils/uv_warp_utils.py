@@ -17,16 +17,28 @@ import xatlas
 
 
 def mesh_uv_wrap(mesh):
+    import time
+    start = time.time()
+    
     if isinstance(mesh, trimesh.Scene):
         mesh = mesh.dump(concatenate=True)
 
-    if len(mesh.faces) > 500000000:
+    num_faces = len(mesh.faces)
+    num_vertices = len(mesh.vertices)
+    print(f"      메쉬 정보: {num_vertices:,}개 정점, {num_faces:,}개 면")
+    
+    if num_faces > 500000000:
         raise ValueError("The mesh has more than 500,000,000 faces, which is not supported.")
 
+    print(f"      xatlas UV parametrize 실행 중...")
+    param_start = time.time()
     vmapping, indices, uvs = xatlas.parametrize(mesh.vertices, mesh.faces)
+    print(f"      xatlas 완료: {time.time() - param_start:.2f}초")
 
     mesh.vertices = mesh.vertices[vmapping]
     mesh.faces = indices
     mesh.visual.uv = uvs
+    
+    print(f"      총 UV Wrapping 시간: {time.time() - start:.2f}초")
 
     return mesh
