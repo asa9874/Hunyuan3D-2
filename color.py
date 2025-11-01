@@ -9,7 +9,7 @@ from hy3dgen.rembg import BackgroundRemover
 
 # ==== 설정 가능한 매개변수 ====
 # 경로 설정
-INPUT_IMAGE = 'my/input/shirts.jpg'     # 입력 이미지 경로
+INPUT_IMAGE = 'my/input/bag.jpg'     # 입력 이미지 경로
 
 # 배경 제거 설정
 REMOVE_BACKGROUND = True            # 배경 제거 활성화 (True/False)
