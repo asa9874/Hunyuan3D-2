@@ -30,7 +30,7 @@ else:
 # 경로 설정 - 멀티뷰 이미지 (최소 2개, 권장 3-4개)
 INPUT_IMAGES = {
     "front": "mymv/input/front.png",      # 필수: 정면
-    "left": "mymv/input/left.png",        # 선택: 좌측
+    #"left": "mymv/input/left.png",        # 선택: 좌측
     "back": "mymv/input/back.png",        # 선택: 후면
     # "right": "mymv/input/right.png",    # 선택: 우측
 }
